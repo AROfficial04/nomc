@@ -3,9 +3,7 @@ import pandas as pd
 import os
 from werkzeug.utils import secure_filename
 
-
 app = Flask(__name__, static_folder='assets')
-
 
 # Set upload folder and allowed file extensions
 UPLOAD_FOLDER = 'uploads'
@@ -93,39 +91,51 @@ def process_data():
         never_comm_data.to_excel(never_comm_file, index=False)
         unmapped_data.to_excel(unmapped_file, index=False)
 
-        # Prepare preview data (e.g., first 5 rows of the Non-Comm data)
-        preview_data = non_comm_data.head(5).to_dict(orient='records')
+        # Prepare summaries for detailed analysis
+        def analyze_column(dataframe, columns):
+            analysis = {}
+            for column in columns:
+                if column in dataframe.columns:
+                    value_counts = dataframe[column].value_counts().to_dict()
+                    analysis[column] = {
+                        "unique_count": len(value_counts),
+                        "frequencies": value_counts
+                    }
+            return analysis
 
+        non_comm_analysis = analyze_column(non_comm_data, ["CTWC", "MeterType"])
+        never_comm_analysis = analyze_column(never_comm_data, ["Region Name"])
+        unmapped_analysis = analyze_column(unmapped_data, ["CTWC", "MeterType"])
+
+        # Prepare overall summary
         summary = {
-          "WFM Total Entries": len(df_wfm),  # Total entries in the WFM file
-          "HES Total Entries": len(df_hes),  # Total entries in the HES file
-          "Non-Comm Count": len(non_comm_data),
-          "Never-Comm Count": len(never_comm_data),
-          "Unmapped Count": len(unmapped_data),
-          "Matched Entries": len(df_wfm[df_wfm[wfm_column].isin(df_hes[hes_column])])  # Entries that match between WFM and HES
+            "WFM Total Entries": len(df_wfm),
+            "HES Total Entries": len(df_hes),
+            "Non-Comm Count": len(non_comm_data),
+            "Never-Comm Count": len(never_comm_data),
+            "Unmapped Count": len(unmapped_data),
+            "Matched Entries": len(df_wfm[df_wfm[wfm_column].isin(df_hes[hes_column])]),
+            "Detailed Analysis": {
+                "Non-Comm": non_comm_analysis,
+                "Never-Comm": never_comm_analysis,
+                "Unmapped": unmapped_analysis
+            }
         }
-        
 
         return jsonify({
-    "nonCommFile": f"/download/{os.path.basename(non_comm_file)}",
-    "neverCommFile": f"/download/{os.path.basename(never_comm_file)}",
-    "unmappedFile": f"/download/{os.path.basename(unmapped_file)}",
-    "previewData": preview_data,  # Optional: Add preview of processed data
-    "summary": summary  # Include the summary in the response
-})
+            "nonCommFile": f"/download/{os.path.basename(non_comm_file)}",
+            "neverCommFile": f"/download/{os.path.basename(never_comm_file)}",
+            "unmappedFile": f"/download/{os.path.basename(unmapped_file)}",
+            "summary": summary
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
 
 # Route to download the processed files
 @app.route('/download/<filename>')
 def download_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-
-
 
 if __name__ == "__main__":
     # Create upload folder if it doesn't exist
@@ -133,4 +143,4 @@ if __name__ == "__main__":
         os.makedirs(UPLOAD_FOLDER)
 
     # Run the app
-    app.run()
+    app.run(debug=True)
