@@ -6,308 +6,286 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nomc Website</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    </head>
     <style>
-        *{
-            font-family: Verdana, Geneva, Tahoma, sans-serif;
+        /* General Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         body {
-            font-family: Arial, sans-serif;
-            height: 100vh;
-            /* height: 100%; */
-
-
-            background-image: url("{{ url_for('static', filename='bg5.jpg') }}");
-            background-size: cover;
-            background-position: center;
+            font-family: 'Inter', sans-serif; /* Professional Font */
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            overflow-x: hidden;
+          
         }
-
-        .container {
-            width: 80%;
-            margin: auto;
-            padding: 20px;
-            display: flex;
-            justify-content: space-evenly;
-        }
-
-        h1 {
-            text-align: center;
-        }
-
-        .file-input,
-        .column-select,
-        .process-section {
-            margin: 20px 0;
-        }
-
-        button {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
-            font-size: 16px;
-        }
-
-        .dropdown {
-            margin: 10px 0;
-        }
-
-        /* Loader Styles */
-        #loader {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 20px;
-            color: #000;
-            z-index: 1000;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        table,
-        th,
-        td {
-            border: 1px solid black;
-        }
-
-        th,
-        td {
-            padding: 10px;
-            text-align: left;
-        }
-
-        /* Dropdown container */
-        .dropdown {
-            position: relative;
-        }
-
-        .dropbtn {
-            cursor: pointer;
-        }
-
-        /* Dropdown menu styles */
-        .dropdown-menu {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            background: #f4f4f4;
-            border: 1px solid #ccc;
-            padding: 10px;
-            z-index: 1000;
-            list-style: none;
-            /* width: 15%; */
-            font-weight: 600;
-        }
-
-        .dropdown:hover .dropdown-menu {
-            display: block;
-        }
-
-        .dropdown-menu ul {
-            list-style: none;
-            margin: 5px 0;
-            padding: 0;
-        }
-
-        .dropdown-menu ul li {
-            margin: 5px 0;
-        }
-
-        .boxes {
-            /* height: 15rem; */
-            /* border: 2px solid blue; */
-            backdrop-filter:blur("10%");
-            background: #ffffff8d;
-            border-radius: 2rem;
-            padding: 0.5rem 2rem 0rem 1rem;
-            align-items: center;
-            
-            max-width: 50%;
-            /* width: 40rem; */
-            box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;
-        }
-
-        label {
-            margin: 2rem 0;
-        }
-
-        input {
-            margin: 1rem 0;
-        }
-
-        .boxes h3 {
-            color: orange;
-            font-size: 22px;
-        }
-
-        nav {
-            /* Apply a background color with transparency */
-            background: rgba(255, 255, 255, 0.236);
-            /* Slightly transparent white */
-
-            /* Apply the glass effect with backdrop blur */
-            backdrop-filter: blur(15%);
-            /* This is the key for the frosted glass effect */
-
-            /* Border radius for rounded corners */
-            border-radius: 25rem;
-
-            /* Apply shadows to create depth */
-            box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
-                rgba(0, 0, 0, 0.3) 0px 30px 60px -30px,
-                rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;
-
-            /* Padding and margin for layout */
-            padding: 0rem 2rem;
-            margin: 0 3rem;
-
-            /* Center the contents of the nav */
+       
+        header {
+            box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px;
+            background-color: #fff;
+            padding: 1.5rem;
+            /* border-radius: 12px; */
             display: flex;
             justify-content: space-between;
             align-items: center;
+            /* margin: 1rem auto; */
+            max-width: 100%;
+        }
+        .logo-name h2 {
+            color: #0033b3;
+            font-size: 2rem;
+            text-align: center;
+        }
+        .logo-name h2 span {
+            color: #006aff;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            max-width: 95%;
+            margin: 1rem auto;
+            padding: 1rem;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px;
+        }
+        /* .right-section {
+          flex: 0 0 15%;
+        } */
+        .center-section{
+            flex: 0 0 75%;
 
-            /* Optional: make sure text is legible on the transparent background */
-            color: #ffffff;
+        }
+        .left-section{
+            flex: 0 0 20%;
+
+        }
+        .left-section {
+            padding-right: 1rem;
+        }
+        .file-input, .column-select {
+            padding: 1rem;
+            background-color: #f9f9fb;
+            border-radius: 12px;
+            box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px;
+            margin-bottom: 1.5rem;
+        }
+        .file-input h3, .column-select h3 {
+            font-size: 1.25rem;
+            color: #0033b3;
+            margin-bottom: 1rem;
+        }
+        label {
+            font-size: 1rem;
+            font-weight: 500;
+            display: block;
+            color: #555;
+            margin-bottom: 0.5rem;
+        }
+        input[type="file"], select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #006aff;
+            box-shadow: 0 0 0 2px rgba(0, 106, 255, 0.2);
+        }
+        .process-section {
+            text-align: center;
+            margin-top: 1rem;
+        }
+        #processButton {
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background-color: #006aff;
+            color: #fff;
             border: none;
-            /* Optional: Removes any border */
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
-
-
-        nav ul li a {
-
-            text-decoration: none;
-            color: rgb(0, 140, 255);
-            font-size: 18px;
-            /* font-weight:600; */
-
+        #processButton:hover {
+            background-color: #0051cc;
+            transform: scale(1.05);
         }
-
-        nav ul li a:hover {
-
-            text-decoration: none;
-            color: rgb(0, 57, 103);
-            font-size: 1.2rem;
-            font-weight: 600;
-
+        .right-section {
+            
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #f9f9fb;
+            border-radius: 12px;
+            box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px;
         }
-
-        li {
+        .center-section {
+           
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #f9f9fb;
+            border-radius: 12px;
+            box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px;
+        }
+        #summarySection {
+            display: none;
+            padding: 1rem;
+            text-align: center;
+            width: 100%;
+        }
+        #summarySection h3 {
+            font-size: 1.5rem;
+            color: #0033b3;
+            margin-bottom: 1rem;
+        }
+        #summaryCards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            padding: 1rem 0;
+        }
+        #loader {
+            display: none;
+            margin-top: 2rem;
+        }
+        #loader img {
+            height: 70px;
+            animation: spin 1.5s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .left-section, .right-section .center-section {
+                width: 100%;
+            }
+        }
+        #links a{
+            font-size: 20px;
+            font-weight: bold;
             list-style: none;
+            text-decoration: none;
+            color: red;
         }
-
-        select {
-            height: 2rem;
-            width: 10rem;
-        }
-
-        .process-section button {
-            height: 3rem;
-            width: 12rem;
-            box-shadow: rgba(50, 50, 93, 0.25) 0px 25px 50px -10px, rgba(78, 78, 78, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;
-            color: greenyellow;
-            font-size: 1.2rem;
+        #links a:hover{
+            font-size: 22px;
             font-weight: bold;
-            border-radius: 1rem;
-            border: none;
-            background: #ffffff
+            list-style: none;
+            text-decoration: none;
+            color: rgb(153, 0, 0);
         }
+        .reload-button {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+}
 
-        .process-section button:hover {
-            height: 3rem;
-            width: 12rem;
-            box-shadow: rgba(0, 255, 102, 0.25) 0px 25px 50px -10px, rgba(78, 78, 78, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;
-            color: rgb(255, 255, 255);
-            font-size: 1.2rem;
-            font-weight: bold;
-            border-radius: 1rem;
-            border: none;
-            background: #86ec00
-        }
+.reload-icon {
+    transition: transform 0.3s ease;
+}
 
-        .boxes:hover {
-            background-color: #ffffff3d;
-        }
+.reload-icon:hover {
+    animation: spin 0.6s linear;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+  
     </style>
-</head>
-
 <body>
-    <header>
-        <div style="display: flex;margin: 0 3rem;justify-content: space-between;" class="logo-name">
-            <img height="50" src="{{ url_for('static', filename='logonew.png') }}" alt="">
-            <h2 style="margin-left: 1rem;color: orangered;">Network Operating and Monitoring Centre <span style="color: rgb(0, 106, 255);">(NOMC)</span></h2>
-            <img height="50" src="{{ url_for('static', filename='cspdcl.jpg') }}" alt="">
-        </div>
-        <nav>
-            <ul>
-                <li class="dropdown">
-                    <a href="#" class="dropbtn">Dashboard</a>
-                    <ul style="padding: 1rem;border-radius: 1rem;" class="dropdown-menu">
-                        <div style="color: rgb(55, 55, 55);margin: 15px;" id="links"></div>
-                    </ul>
-                </li>
-            </ul>
-        </nav>
-    </header>
-
-
-    <div class="container">
-        <!-- <h1>Nomc Website</h1> -->
-        <div class="boxes">
-            <div class="file-input">
-                <h3>Upload Files</h3>
-                <label>File 1 (WFM) :</label>
-                <input type="file" id="file1" onchange="fetchColumns('file1')"><br><br>
-                <label>File 2 (HES) :</label>
-                <input type="file" id="file2" onchange="fetchColumns('file2')"><br><br>
-            </div>
-            <div class="column-select">
-                <h3>Select Columns</h3>
-                <label>WFM Column :</label>
-                <select id="wfmColumn" class="dropdown">
-                    <option value="" disabled selected>Select column</option>
-                </select><br><br>
-                <label>HES Column :</label>
-                <select id="hesColumn" class="dropdown">
-                    <option value="" disabled selected>Select column</option>
-                </select><br><br>
-                <label>Non-Comm Column :</label>
-                <select id="nonCommColumn" class="dropdown">
-                    <option value="" disabled selected>Select column</option>
-                </select><br><br>
-            </div>
-        </div>
-        <div style="display: inline;justify-content: center;width: 60%;height:100%;" class="">
-            <div style="max-height: 100%;max-width: 100%;" class="boxes">
-                <div id="summarySection" style="display: none; margin-top: 20px;">
-                    <h3 style="text-align: center; margin-bottom: 20px;">Summary</h3>
-                    <div id="summaryCards" style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
-                        <!-- Cards will be dynamically inserted here -->
-                    </div>
-                </div>
-                
-            </div>
-           <br>
-            <div class="process-section">
-                <button id="processButton">Process Data</button>
-            </div>
-            <!-- <div id="links"></div> -->
-            <div id="preview" style="display: none;">
-                <!-- <h3>Preview Processed Data</h3> -->
-                <!-- <table id="dataTable"></table> -->
-                <button id="downloadButton" style="display: none;">Download Processed Data</button>
-            </div>
-          
-        </div>
+    <header style="box-shadow: rgba(0, 0, 0, 0.2) 0px 12px 28px 0px, rgba(0, 0, 0, 0.1) 0px 2px 4px 0px, rgba(255, 255, 255, 0.05) 0px 0px 0px 1px inset;background-color: rgb(255, 255, 255);margin: none;padding: 1rem 1rem 1rem 1rem;align-items: center;">
        
+            <img height="50" src="{{ url_for('static', filename='logonew.png') }}" alt="Left Logo">
+            <h2 style="color: rgb(0, 51, 179); font-size: 1.8rem; white-space: nowrap; margin: 0;">Network Operating and Monitoring Centre <span style="color: rgb(0, 106, 255);">(NOMC)</span></h2>
+            <img height="50" src="{{ url_for('static', filename='cspdcl.jpg') }}" alt="Right Logo">
+        
+    </header>
+    <div class="container">
+        <!-- Left Section -->
+        <div style="justify-content: left;" class="left-section">
+            <div  class="file-input">
+                <h3>Upload Files</h3>
+                <label>File 1 (WFM):</label>
+                <input type="file" id="file1" onchange="fetchColumns('file1')">
+                <label>File 2 (HES):</label>
+                <input type="file" id="file2" onchange="fetchColumns('file2')">
+            </div>
+            <div  class="column-select">
+                <h3>Select Columns</h3>
+                <label>WFM Column:</label>
+                <select id="wfmColumn">
+                    <option value="" disabled selected>Select column</option>
+                </select>
+                <label>HES Column:</label>
+                <select id="hesColumn">
+                    <option value="" disabled selected>Select column</option>
+                </select>
+                <label>Non-Comm Column:</label>
+                <select id="nonCommColumn">
+                    <option value="" disabled selected>Select column</option>
+                </select>
+            </div>
+            <div style="align-items:center ;justify-content: space-evenly;display: flex;width: 100%;" class="process-section">
+                <button id="processButton">Process Data</button>
+               <button class="reload-button" onclick="location.reload()">
+    <img class="reload-icon" height="40" src="{{ url_for('static', filename='relo.png') }}" alt="Reload">
+</button>
 
-        <!-- Loader -->
-        <div id="loader"><img height="70" src="{{ url_for('static', filename='1495.png') }}" alt="Logo">
+            </div>
+
         </div>
+        <!-- Right Section -->
+        <div style="justify-content: center;text-align: center;" class="center-section">
+            <div  >
+                <h3>Download Links!</h3>
+                <ul  style="width: 50vw;">
+                <div style="display: flex;justify-content: space-evenly;" id="links">
+                     <!-- Summary Cards Inserted Dynamically  -->
+                </div> 
+            </ul>
+            </div>
+            <div  id="summarySection">
+                <h3>Summary</h3>
+                <div id="summaryCards">
+                    <!-- Summary Cards Inserted Dynamically -->
+                </div>
+            </div>
+
+            <div id="loader">
+                <img src="{{ url_for('static', filename='1495.png') }}" alt="Loading">
+            </div>
+        </div>
+        <!-- <div  class="right-section">
+             -->
+            <div id="loader">
+                <img src="{{ url_for('static', filename='1495.png') }}" alt="Loading">
+            </div>
+        <!-- </div> -->
     </div>
 
     
@@ -382,9 +360,9 @@
                     // Display download links after previewing
                     $("#links").html(` 
                         
-                        <a href="${response.nonCommFile}" download>Non-Comm Data</a><br>
-                        <a href="${response.neverCommFile}" download> Never-Comm Data</a><br>
-                        <a href="${response.unmappedFile}" download> Unmapped Data</a><br>
+                        <a href="${response.nonCommFile}" download>Non-Comm Data<span><img height="30" src="{{ url_for('static', filename='downl.png') }}" alt=""></span></a><br>
+                        <a href="${response.neverCommFile}" download> Never-Comm Data<span><img height="30" src="{{ url_for('static', filename='downl.png') }}" alt=""></span></a><br>
+                        <a href="${response.unmappedFile}" download> Unmapped Data<span><img height="30" src="{{ url_for('static', filename='downl.png') }}" alt=""></span></a><br>
                     `);
                 },
                 error: function (xhr) {
@@ -444,14 +422,14 @@
         { title: "Non-Comm Count", count: summary["Non-Comm Count"] },
         { title: "Never-Comm Count", count: summary["Never-Comm Count"] },
         { title: "Unmapped Count", count: summary["Unmapped Count"] },
-        { title: "Matched Entries", count: summary["Matched Entries"] },
+        // { title: "Matched Entries", count: summary["Matched Entries"] },
     ];
     console.log(mainCategories)
 
     mainCategories.forEach((category) => {
         const card = document.createElement("div");
         card.style.cssText = `
-            flex: 1 1 calc(300px - 20px);
+            flex: 1 1 calc(200px - 10px);
             background: #f9f9f9;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -475,7 +453,7 @@
 
             const card = document.createElement("div");
             card.style.cssText = `
-                flex: 1 1 calc(300px - 20px);
+                flex: 1 1 calc(250px - 20px);
                 background: #f9f9f9;
                 border-radius: 8px;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
