@@ -28,20 +28,36 @@ def index():
     return render_template("index.html")
 
 # Route to handle file uploads and get columns
+# Route to handle file uploads and get columns
 @app.route("/get_columns", methods=["POST"])
 def get_columns():
     try:
-        file = request.files['file']
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+        # Retrieve both files from the request
+        file1 = request.files['file1']
+        file2 = request.files['file2']
+        
+        # Check if both files are allowed
+        if file1 and allowed_file(file1.filename) and file2 and allowed_file(file2.filename):
+            # Read the files into memory
+            file1_in_memory = io.BytesIO(file1.read())
+            file2_in_memory = io.BytesIO(file2.read())
+            
+            # Read the Excel files into DataFrames
+            df_wfm = pd.read_excel(file1_in_memory)
+            df_hes = pd.read_excel(file2_in_memory)
+            
+            # Normalize column names
+            df_wfm.columns = df_wfm.columns.str.strip()
+            df_hes.columns = df_hes.columns.str.strip()
+            
+            # Return the columns of both DataFrames
+            columns_wfm = df_wfm.columns.tolist()
+            columns_hes = df_hes.columns.tolist()
 
-            # Read the Excel file and extract columns
-            df = pd.read_excel(filepath)
-            columns = df.columns.tolist()
-
-            return jsonify({"columns": columns})
+            return jsonify({
+                "file1_columns": columns_wfm,
+                "file2_columns": columns_hes
+            })
         else:
             return jsonify({"error": "Invalid file format"}), 400
     except Exception as e:
