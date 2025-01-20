@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 import pandas as pd
 import os
 from werkzeug.utils import secure_filename
+from pymongo import MongoClient
+import io
 
 app = Flask(__name__, static_folder='assets')
 
@@ -10,6 +12,11 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'xls', 'xlsx'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# MongoDB connection
+client = MongoClient("mongodb+srv://mass:ayamass@nomc.r8hka.mongodb.net/")
+db = client["your_database_name"]  # Replace with your actual database name
+collection = db["your_collection_name"]  # Replace with your collection name
 
 # Helper function to check file extensions
 def allowed_file(filename):
@@ -28,10 +35,10 @@ def get_columns():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
 
-            # Read the Excel file and extract columns
-            df = pd.read_excel(filepath)
+            # Save the file in memory and read it into a DataFrame
+            in_memory_file = io.BytesIO(file.read())
+            df = pd.read_excel(in_memory_file)
             columns = df.columns.tolist()
 
             return jsonify({"columns": columns})
@@ -51,15 +58,15 @@ def process_data():
         hes_column = request.form['hesColumn'].strip()
         non_comm_column = request.form['nonCommColumn'].strip()
 
-        # Save uploaded files
-        file1_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file1.filename))
-        file2_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file2.filename))
-        file1.save(file1_path)
-        file2.save(file2_path)
-
-        # Read Excel files and normalize column names
-        df_wfm = pd.read_excel(file1_path)
-        df_hes = pd.read_excel(file2_path)
+        # Read Excel files from memory
+        file1_in_memory = io.BytesIO(file1.read())
+        file2_in_memory = io.BytesIO(file2.read())
+        
+        # Read the Excel files into DataFrames
+        df_wfm = pd.read_excel(file1_in_memory)
+        df_hes = pd.read_excel(file2_in_memory)
+        
+        # Normalize column names
         df_wfm.columns = df_wfm.columns.str.strip()
         df_hes.columns = df_hes.columns.str.strip()
 
@@ -80,16 +87,20 @@ def process_data():
         # **Unmapped Logic**: Rows in HES where `hes_column` is NOT in WFM's `wfm_column`
         unmapped_data = df_hes[~df_hes[hes_column].isin(df_wfm[wfm_column])]
 
-        # Save processed data to new files
+        # Store the processed data in MongoDB
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-        non_comm_file = os.path.join(app.config['UPLOAD_FOLDER'], f"Non_Comm_{timestamp}.xlsx")
-        never_comm_file = os.path.join(app.config['UPLOAD_FOLDER'], f"Never_Comm_{timestamp}.xlsx")
-        unmapped_file = os.path.join(app.config['UPLOAD_FOLDER'], f"Unmapped_{timestamp}.xlsx")
+        
+        # Create document for non_comm_data, never_comm_data, and unmapped_data
+        non_comm_data_dict = non_comm_data.to_dict(orient="records")
+        never_comm_data_dict = never_comm_data.to_dict(orient="records")
+        unmapped_data_dict = unmapped_data.to_dict(orient="records")
 
-        # Save results (include all columns)
-        non_comm_data.to_excel(non_comm_file, index=False)
-        never_comm_data.to_excel(never_comm_file, index=False)
-        unmapped_data.to_excel(unmapped_file, index=False)
+        # Insert the data into MongoDB
+        collection.insert_many([
+            {"type": "Non-Comm", "timestamp": timestamp, "data": non_comm_data_dict},
+            {"type": "Never-Comm", "timestamp": timestamp, "data": never_comm_data_dict},
+            {"type": "Unmapped", "timestamp": timestamp, "data": unmapped_data_dict}
+        ])
 
         # Prepare summaries for detailed analysis
         def analyze_column(dataframe, columns):
@@ -123,19 +134,25 @@ def process_data():
         }
 
         return jsonify({
-            "nonCommFile": f"/download/{os.path.basename(non_comm_file)}",
-            "neverCommFile": f"/download/{os.path.basename(never_comm_file)}",
-            "unmappedFile": f"/download/{os.path.basename(unmapped_file)}",
             "summary": summary
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Route to download the processed files
-@app.route('/download/<filename>')
-def download_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+# Route to download the processed files (fetch from MongoDB)
+@app.route('/download/<data_type>/<timestamp>')
+def download_file(data_type, timestamp):
+    try:
+        # Fetch the data from MongoDB by type and timestamp
+        result = collection.find_one({"type": data_type, "timestamp": timestamp})
+        if result:
+            # If data is found, return it as JSON
+            return jsonify(result['data'])
+        else:
+            return jsonify({"error": "Data not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     # Create upload folder if it doesn't exist
@@ -144,4 +161,3 @@ if __name__ == "__main__":
 
     # Run the app
     app.run(host="0.0.0.0", port=5000, debug=True)
-
