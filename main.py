@@ -236,4 +236,4 @@ if __name__ == "__main__":
         os.makedirs(UPLOAD_FOLDER)
 
     # Run the app
-    app.run()
+    app.run(debug=true)
