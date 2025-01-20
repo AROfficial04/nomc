@@ -17,6 +17,7 @@ pandas==2.2.3
 pefile==2023.2.7
 pyinstaller==6.11.1
 pyinstaller-hooks-contrib==2024.11
+pymongo==4.10.1
 python-dateutil==2.9.0.post0
 pytz==2024.2
 pywin32-ctypes==0.2.3
