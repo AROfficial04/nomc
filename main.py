@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 import pandas as pd
 import os
 from werkzeug.utils import secure_filename
+from pymongo import MongoClient
+import json
 
 app = Flask(__name__, static_folder='assets')
 
@@ -10,6 +12,15 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'xls', 'xlsx'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# MongoDB connection
+client = MongoClient("mongodb+srv://mass:ayamass@nomc.r8hka.mongodb.net/")
+db = client['nomc']
+collection = db['processed_data']
+
+# Delete all documents in the collection
+result = collection.delete_many({})
+print(f"Deleted {result.deleted_count} documents.")
 
 # Helper function to check file extensions
 def allowed_file(filename):
@@ -103,9 +114,11 @@ def process_data():
                     }
             return analysis
 
-        non_comm_analysis = analyze_column(non_comm_data, ["CTWC", "MeterType"])
-        never_comm_analysis = analyze_column(never_comm_data, ["Region Name"])
-        unmapped_analysis = analyze_column(unmapped_data, ["CTWC", "MeterType"])
+        wfm_analysis = analyze_column(df_wfm, ["Region Name", "OLD Meter Phase Type","Installation Type"])
+        hes_analysis = analyze_column(df_hes, ["CTWC", "MeterType","CommunicationMedium"])
+        non_comm_analysis = analyze_column(non_comm_data, ["CTWC", "MeterType","CommunicationMedium"])
+        never_comm_analysis = analyze_column(never_comm_data, ["Region Name", "OLD Meter Phase Type","Meter Communication Type"])
+        unmapped_analysis = analyze_column(unmapped_data, ["CTWC", "MeterType","CommunicationMedium"])
 
         # Prepare overall summary
         summary = {
@@ -118,15 +131,95 @@ def process_data():
             "Detailed Analysis": {
                 "Non-Comm": non_comm_analysis,
                 "Never-Comm": never_comm_analysis,
-                "Unmapped": unmapped_analysis
+                "Unmapped": unmapped_analysis,
+                "WFM": wfm_analysis,
+                "HES": hes_analysis
             }
         }
+
+        # Generate pivot summaries
+        def generate_pivot_summary(df_wfm, df_hes, non_comm_data, never_comm_data, unmapped_data):
+            summary = {}
+
+            # WFM Summary: Count by Region, Meter Type (WC/DT), and Phase Type (1 Phase/3 Phase)
+            def wfm_summary():
+                return pd.crosstab(
+                    [df_wfm['Region Name'], df_wfm['Installation Type']],
+                    df_wfm['OLD Meter Phase Type'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # HES Summary: Count by Meter Type (WC/DT) and Communication Medium (RF/GPRS)
+            def hes_summary():
+                return pd.crosstab(
+                    df_hes['MeterType'],
+                    df_hes['CommunicationMedium'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Non-Comm Summary: Count by Meter Type (WC/DT) and Communication Medium (RF/GPRS)
+            def non_comm_summary():
+                return pd.crosstab(
+                    non_comm_data['MeterType'],
+                    non_comm_data['CommunicationMedium'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Never-Comm Summary: Count by Region and Communication Type (GPRS/RF)
+            def never_comm_summary():
+                return pd.crosstab(
+                    never_comm_data['Region Name'],
+                    never_comm_data['Meter Communication Type'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Unmapped Summary: Count by Meter Type (WC/DT) and Communication Medium (RF/GPRS)
+            def unmapped_summary():
+                return pd.crosstab(
+                    unmapped_data['MeterType'],
+                    unmapped_data['CommunicationMedium'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Convert tuple keys to strings
+            def convert_keys_to_strings(d):
+                new_d = {}
+                for k, v in d.items():
+                    if isinstance(k, tuple):
+                        k = ' & '.join(map(str, k))
+                    if isinstance(v, dict):
+                        v = convert_keys_to_strings(v)
+                    new_d[k] = v
+                return new_d
+
+            # Generate Summaries for all datasets
+            summary['wfm'] = convert_keys_to_strings(wfm_summary())
+            summary['hes'] = convert_keys_to_strings(hes_summary())
+            summary['non_comm'] = convert_keys_to_strings(non_comm_summary())
+            summary['never_comm'] = convert_keys_to_strings(never_comm_summary())
+            summary['unmapped'] = convert_keys_to_strings(unmapped_summary())
+
+            return summary
+
+        pivot_summary = generate_pivot_summary(df_wfm, df_hes, non_comm_data, never_comm_data, unmapped_data)
+
+        # Store the processed data in MongoDB
+        data_to_store = {
+            "timestamp": timestamp,
+            "summary": summary,
+            "pivotSummary": pivot_summary,
+            "nonCommFile": non_comm_file,
+            "neverCommFile": never_comm_file,
+            "unmappedFile": unmapped_file
+        }
+        collection.insert_one(data_to_store)
 
         return jsonify({
             "nonCommFile": f"/download/{os.path.basename(non_comm_file)}",
             "neverCommFile": f"/download/{os.path.basename(never_comm_file)}",
             "unmappedFile": f"/download/{os.path.basename(unmapped_file)}",
-            "summary": summary
+            "summary": summary,
+            "pivotSummary": pivot_summary
         })
 
     except Exception as e:
@@ -144,4 +237,3 @@ if __name__ == "__main__":
 
     # Run the app
     app.run(host="0.0.0.0", port=5000, debug=True)
-
