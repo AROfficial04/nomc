@@ -15,8 +15,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # MongoDB connection
 client = MongoClient("mongodb+srv://mass:ayamass@nomc.r8hka.mongodb.net/")
-db = client["your_database_name"]  # Replace with your actual database name
-collection = db["your_collection_name"]  # Replace with your collection name
+db = client['nomc']
+collection = db['processed_data']
 
 # Helper function to check file extensions
 def allowed_file(filename):
