@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
-import io
+import json
 
 app = Flask(__name__, static_folder='assets')
 
@@ -18,6 +18,10 @@ client = MongoClient("mongodb+srv://mass:ayamass@nomc.r8hka.mongodb.net/")
 db = client['nomc']
 collection = db['processed_data']
 
+# Delete all documents in the collection
+result = collection.delete_many({})
+print(f"Deleted {result.deleted_count} documents.")
+
 # Helper function to check file extensions
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -28,36 +32,20 @@ def index():
     return render_template("index.html")
 
 # Route to handle file uploads and get columns
-# Route to handle file uploads and get columns
 @app.route("/get_columns", methods=["POST"])
 def get_columns():
     try:
-        # Retrieve both files from the request
-        file1 = request.files['file1']
-        file2 = request.files['file2']
-        
-        # Check if both files are allowed
-        if file1 and allowed_file(file1.filename) and file2 and allowed_file(file2.filename):
-            # Read the files into memory
-            file1_in_memory = io.BytesIO(file1.read())
-            file2_in_memory = io.BytesIO(file2.read())
-            
-            # Read the Excel files into DataFrames
-            df_wfm = pd.read_excel(file1_in_memory)
-            df_hes = pd.read_excel(file2_in_memory)
-            
-            # Normalize column names
-            df_wfm.columns = df_wfm.columns.str.strip()
-            df_hes.columns = df_hes.columns.str.strip()
-            
-            # Return the columns of both DataFrames
-            columns_wfm = df_wfm.columns.tolist()
-            columns_hes = df_hes.columns.tolist()
+        file = request.files['file']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
 
-            return jsonify({
-                "file1_columns": columns_wfm,
-                "file2_columns": columns_hes
-            })
+            # Read the Excel file and extract columns
+            df = pd.read_excel(filepath)
+            columns = df.columns.tolist()
+
+            return jsonify({"columns": columns})
         else:
             return jsonify({"error": "Invalid file format"}), 400
     except Exception as e:
@@ -74,15 +62,15 @@ def process_data():
         hes_column = request.form['hesColumn'].strip()
         non_comm_column = request.form['nonCommColumn'].strip()
 
-        # Read Excel files from memory
-        file1_in_memory = io.BytesIO(file1.read())
-        file2_in_memory = io.BytesIO(file2.read())
-        
-        # Read the Excel files into DataFrames
-        df_wfm = pd.read_excel(file1_in_memory)
-        df_hes = pd.read_excel(file2_in_memory)
-        
-        # Normalize column names
+        # Save uploaded files
+        file1_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file1.filename))
+        file2_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file2.filename))
+        file1.save(file1_path)
+        file2.save(file2_path)
+
+        # Read Excel files and normalize column names
+        df_wfm = pd.read_excel(file1_path)
+        df_hes = pd.read_excel(file2_path)
         df_wfm.columns = df_wfm.columns.str.strip()
         df_hes.columns = df_hes.columns.str.strip()
 
@@ -103,20 +91,16 @@ def process_data():
         # **Unmapped Logic**: Rows in HES where `hes_column` is NOT in WFM's `wfm_column`
         unmapped_data = df_hes[~df_hes[hes_column].isin(df_wfm[wfm_column])]
 
-        # Store the processed data in MongoDB
+        # Save processed data to new files
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-        
-        # Create document for non_comm_data, never_comm_data, and unmapped_data
-        non_comm_data_dict = non_comm_data.to_dict(orient="records")
-        never_comm_data_dict = never_comm_data.to_dict(orient="records")
-        unmapped_data_dict = unmapped_data.to_dict(orient="records")
+        non_comm_file = os.path.join(app.config['UPLOAD_FOLDER'], f"Non_Comm_{timestamp}.xlsx")
+        never_comm_file = os.path.join(app.config['UPLOAD_FOLDER'], f"Never_Comm_{timestamp}.xlsx")
+        unmapped_file = os.path.join(app.config['UPLOAD_FOLDER'], f"Unmapped_{timestamp}.xlsx")
 
-        # Insert the data into MongoDB
-        collection.insert_many([
-            {"type": "Non-Comm", "timestamp": timestamp, "data": non_comm_data_dict},
-            {"type": "Never-Comm", "timestamp": timestamp, "data": never_comm_data_dict},
-            {"type": "Unmapped", "timestamp": timestamp, "data": unmapped_data_dict}
-        ])
+        # Save results (include all columns)
+        non_comm_data.to_excel(non_comm_file, index=False)
+        never_comm_data.to_excel(never_comm_file, index=False)
+        unmapped_data.to_excel(unmapped_file, index=False)
 
         # Prepare summaries for detailed analysis
         def analyze_column(dataframe, columns):
@@ -130,9 +114,11 @@ def process_data():
                     }
             return analysis
 
-        non_comm_analysis = analyze_column(non_comm_data, ["CTWC", "MeterType"])
-        never_comm_analysis = analyze_column(never_comm_data, ["Region Name"])
-        unmapped_analysis = analyze_column(unmapped_data, ["CTWC", "MeterType"])
+        wfm_analysis = analyze_column(df_wfm, ["Region Name", "OLD Meter Phase Type","Installation Type"])
+        hes_analysis = analyze_column(df_hes, ["CTWC", "MeterType","CommunicationMedium"])
+        non_comm_analysis = analyze_column(non_comm_data, ["CTWC", "MeterType","CommunicationMedium"])
+        never_comm_analysis = analyze_column(never_comm_data, ["Region Name", "OLD Meter Phase Type","Meter Communication Type"])
+        unmapped_analysis = analyze_column(unmapped_data, ["CTWC", "MeterType","CommunicationMedium"])
 
         # Prepare overall summary
         summary = {
@@ -145,30 +131,104 @@ def process_data():
             "Detailed Analysis": {
                 "Non-Comm": non_comm_analysis,
                 "Never-Comm": never_comm_analysis,
-                "Unmapped": unmapped_analysis
+                "Unmapped": unmapped_analysis,
+                "WFM": wfm_analysis,
+                "HES": hes_analysis
             }
         }
 
+        # Generate pivot summaries
+        def generate_pivot_summary(df_wfm, df_hes, non_comm_data, never_comm_data, unmapped_data):
+            summary = {}
+
+            # WFM Summary: Count by Region, Meter Type (WC/DT), and Phase Type (1 Phase/3 Phase)
+            def wfm_summary():
+                return pd.crosstab(
+                    [df_wfm['Region Name'], df_wfm['Installation Type']],
+                    df_wfm['OLD Meter Phase Type'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # HES Summary: Count by Meter Type (WC/DT) and Communication Medium (RF/GPRS)
+            def hes_summary():
+                return pd.crosstab(
+                    df_hes['MeterType'],
+                    df_hes['CommunicationMedium'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Non-Comm Summary: Count by Meter Type (WC/DT) and Communication Medium (RF/GPRS)
+            def non_comm_summary():
+                return pd.crosstab(
+                    non_comm_data['MeterType'],
+                    non_comm_data['CommunicationMedium'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Never-Comm Summary: Count by Region and Communication Type (GPRS/RF)
+            def never_comm_summary():
+                return pd.crosstab(
+                    never_comm_data['Region Name'],
+                    never_comm_data['Meter Communication Type'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Unmapped Summary: Count by Meter Type (WC/DT) and Communication Medium (RF/GPRS)
+            def unmapped_summary():
+                return pd.crosstab(
+                    unmapped_data['MeterType'],
+                    unmapped_data['CommunicationMedium'],
+                    margins=True, margins_name="Total"
+                ).fillna(0).to_dict()
+
+            # Convert tuple keys to strings
+            def convert_keys_to_strings(d):
+                new_d = {}
+                for k, v in d.items():
+                    if isinstance(k, tuple):
+                        k = ' & '.join(map(str, k))
+                    if isinstance(v, dict):
+                        v = convert_keys_to_strings(v)
+                    new_d[k] = v
+                return new_d
+
+            # Generate Summaries for all datasets
+            summary['wfm'] = convert_keys_to_strings(wfm_summary())
+            summary['hes'] = convert_keys_to_strings(hes_summary())
+            summary['non_comm'] = convert_keys_to_strings(non_comm_summary())
+            summary['never_comm'] = convert_keys_to_strings(never_comm_summary())
+            summary['unmapped'] = convert_keys_to_strings(unmapped_summary())
+
+            return summary
+
+        pivot_summary = generate_pivot_summary(df_wfm, df_hes, non_comm_data, never_comm_data, unmapped_data)
+
+        # Store the processed data in MongoDB
+        data_to_store = {
+            "timestamp": timestamp,
+            "summary": summary,
+            "pivotSummary": pivot_summary,
+            "nonCommFile": non_comm_file,
+            "neverCommFile": never_comm_file,
+            "unmappedFile": unmapped_file
+        }
+        collection.insert_one(data_to_store)
+
         return jsonify({
-            "summary": summary
+            "nonCommFile": f"/download/{os.path.basename(non_comm_file)}",
+            "neverCommFile": f"/download/{os.path.basename(never_comm_file)}",
+            "unmappedFile": f"/download/{os.path.basename(unmapped_file)}",
+            "summary": summary,
+            "pivotSummary": pivot_summary
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Route to download the processed files (fetch from MongoDB)
-@app.route('/download/<data_type>/<timestamp>')
-def download_file(data_type, timestamp):
-    try:
-        # Fetch the data from MongoDB by type and timestamp
-        result = collection.find_one({"type": data_type, "timestamp": timestamp})
-        if result:
-            # If data is found, return it as JSON
-            return jsonify(result['data'])
-        else:
-            return jsonify({"error": "Data not found"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# Route to download the processed files
+@app.route('/download/<filename>')
+def download_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == "__main__":
     # Create upload folder if it doesn't exist
