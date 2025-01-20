@@ -35,10 +35,10 @@ def get_columns():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
 
-            # Save the file in memory and read it into a DataFrame
-            in_memory_file = io.BytesIO(file.read())
-            df = pd.read_excel(in_memory_file)
+            # Read the Excel file and extract columns
+            df = pd.read_excel(filepath)
             columns = df.columns.tolist()
 
             return jsonify({"columns": columns})
